@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Arkanoid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <audio id="bgMusic" loop>
+        <source src="https://www.fesliyanstudios.com/play-mp3/4383" type="audio/mpeg">
+        Tu navegador no soporta el elemento de audio.
+    </audio>
+    <style>
+        canvas { background: #0f172a; display: block; margin: 20px auto; border-radius: 10px; }
+        @keyframes flash {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white text-center" onload="playMusic()">
+    <h1 class="text-3xl font-bold my-4">Juego de Arkanoid</h1>
+    <button id="musicToggle" class="px-4 py-2 bg-blue-500 rounded text-white mb-4">Pausar Música</button>
+    <p id="lives" class="text-xl font-semibold">Vidas: 5</p>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div class="my-4">
+        <h2 class="text-xl font-semibold">Instrucciones:</h2>
+        <p>Usa las flechas izquierda y derecha para mover la paleta.</p>
+        <p>Destruye todos los bloques para ganar.</p>
+        <p>Evita que la bola caiga fuera de la pantalla.</p>
+    </div>
+
+    <script>
+        const bgMusic = document.getElementById("bgMusic");
+        const musicToggle = document.getElementById("musicToggle");
+        let isPlaying = false;
+
+        function playMusic() {
+            bgMusic.volume = 0.5;
+            bgMusic.play().then(() => {
+                isPlaying = true;
+            }).catch(error => console.error("Error reproduciendo música", error));
+        }
+
+        musicToggle.addEventListener("click", () => {
+            if (isPlaying) {
+                bgMusic.pause();
+                musicToggle.textContent = "Reproducir Música";
+            } else {
+                bgMusic.play();
+                musicToggle.textContent = "Pausar Música";
+            }
+            isPlaying = !isPlaying;
+        });
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const livesDisplay = document.getElementById('lives');
+
+        const paddle = { width: 100, height: 10, x: canvas.width / 2 - 50, speed: 7, dx: 0 };
+        let ball = { x: canvas.width / 2, y: canvas.height - 50, radius: 8, speed: 4, dx: 4, dy: -4 };
+        const brick = { rowCount: 5, columnCount: 10, width: 70, height: 20, padding: 15, offsetTop: 60, offsetLeft: 35 };
+        let lives = 5;
+
+        let bricks = [];
+        for (let c = 0; c < brick.columnCount; c++) {
+            bricks[c] = [];
+            for (let r = 0; r < brick.rowCount; r++) {
+                bricks[c][r] = { x: 0, y: 0, status: 1, colorIndex: r % 5 };
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') paddle.dx = paddle.speed;
+            else if (e.key === 'ArrowLeft') paddle.dx = -paddle.speed;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') paddle.dx = 0;
+        });
+
+        function drawPaddle() {
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillRect(paddle.x, canvas.height - paddle.height - 10, paddle.width, paddle.height);
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#facc15';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            const colors = ['#ff5733', '#ffbd33', '#33ff57', '#33aaff', '#c133ff'];
+            for (let c = 0; c < brick.columnCount; c++) {
+                for (let r = 0; r < brick.rowCount; r++) {
+                    if (bricks[c][r].status) {
+                        const brickX = c * (brick.width + brick.padding) + brick.offsetLeft;
+                        const brickY = r * (brick.height + brick.padding) + brick.offsetTop;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+                        ctx.fillStyle = colors[bricks[c][r].colorIndex];
+                        ctx.fillRect(brickX, brickY, brick.width, brick.height);
+                    }
+                }
+            }
+        }
+
+        function movePaddle() {
+            paddle.x += paddle.dx;
+            if (paddle.x < 0) paddle.x = 0;
+            if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+        }
+
+        function moveBall() {
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) ball.dx *= -1;
+            if (ball.y - ball.radius < 0) ball.dy *= -1;
+
+            if (
+                ball.x > paddle.x &&
+                ball.x < paddle.x + paddle.width &&
+                ball.y + ball.radius > canvas.height - paddle.height - 10
+            ) {
+                ball.dy *= -1;
+                ball.speed += 0.1;
+            }
+
+            if (ball.y + ball.radius > canvas.height) {
+                lives--;
+                livesDisplay.textContent = `Vidas: ${lives}`;
+                if (lives === 0) {
+                    alert('GAME OVER');
+                    document.location.reload();
+                } else {
+                    ball.x = canvas.width / 2;
+                    ball.y = canvas.height - 50;
+                    ball.dy = -4;
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPaddle();
+            drawBall();
+            drawBricks();
+            movePaddle();
+            moveBall();
+            requestAnimationFrame(draw);
+        }
+
+        draw();
+    </script>
+</body>
+</html>
